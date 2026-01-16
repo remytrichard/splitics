@@ -13,6 +13,7 @@ since it will only accept files that are smaller than about 1MB.
 
 import argparse
 import io
+import os
 import re
 import sys
 
@@ -46,7 +47,9 @@ def dump():
     """
     Dumps the current stream to file.
     """
-    with open("{}.{}.ics".format(args.input.name, file_count), "w", encoding=args.encoding) as outfile:
+    # Use 1-indexed naming: prefix_part1.ics, prefix_part2.ics, etc.
+    output_path = os.path.join(output_dir, "{}_part{}.ics".format(output_prefix, file_count + 1))
+    with open(output_path, "w", encoding=args.encoding) as outfile:
         outfile.write(stream.getvalue())
 
 
@@ -58,6 +61,8 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--size', type=str, default='1M', help='Maximum size of each file (approximate)')
     parser.add_argument('-n', '--number', type=int, default=float('inf'), help='Maximum number of events in each file')
     parser.add_argument('-e', '--encoding', type=str, default='utf8', help='Encoding of the input file')
+    parser.add_argument('-o', '--output-prefix', type=str, default=None,
+                        help='Prefix for output files (default: derived from input filename)')
 
     args = parser.parse_args(sys.argv[1:])
     try:
@@ -65,6 +70,19 @@ if __name__ == '__main__':
     except ValueError as e:
         print(e)
         sys.exit(1)
+
+    # Compute output directory and prefix
+    input_path = os.path.abspath(args.input.name)
+    output_dir = os.path.dirname(input_path)
+    if args.output_prefix:
+        output_prefix = args.output_prefix
+    else:
+        # Derive prefix from input filename (strip .ics extension if present)
+        basename = os.path.basename(input_path)
+        if basename.lower().endswith('.ics'):
+            output_prefix = basename[:-4]
+        else:
+            output_prefix = basename
     # endregion
 
     stream = io.StringIO()
