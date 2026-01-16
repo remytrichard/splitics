@@ -66,6 +66,8 @@ class CalendarSplitter:
         encoding: str,
         output_dir: str,
         output_prefix: str,
+        dry_run: bool = False,
+        overwrite: bool = False,
     ) -> None:
         """
         Initialize the calendar splitter.
@@ -77,6 +79,8 @@ class CalendarSplitter:
             encoding: File encoding for output files
             output_dir: Directory for output files
             output_prefix: Prefix for output filenames
+            dry_run: If True, don't write files, just show what would be created
+            overwrite: If True, overwrite existing files without warning
         """
         self.input_file = input_file
         self.max_size = max_size
@@ -84,6 +88,8 @@ class CalendarSplitter:
         self.encoding = encoding
         self.output_dir = output_dir
         self.output_prefix = output_prefix
+        self.dry_run = dry_run
+        self.overwrite = overwrite
 
         # State variables
         self._stream: io.StringIO = io.StringIO()
@@ -100,8 +106,14 @@ class CalendarSplitter:
         output_path = os.path.join(self.output_dir, filename)
         content = self._stream.getvalue()
 
-        with open(output_path, "w", encoding=self.encoding) as outfile:
-            outfile.write(content)
+        if not self.dry_run:
+            if os.path.exists(output_path) and not self.overwrite:
+                raise FileExistsError(
+                    f"Output file already exists: {output_path}\n"
+                    "Use --overwrite to replace existing files."
+                )
+            with open(output_path, "w", encoding=self.encoding) as outfile:
+                outfile.write(content)
 
         self._output_files.append({
             'filename': filename,
@@ -166,7 +178,8 @@ class CalendarSplitter:
         """Print a summary of the split operation."""
         files = output_files if output_files is not None else self._output_files
         count = len(files)
-        print(f"Split into {count} file{'s' if count != 1 else ''}:")
+        action = "Would split" if self.dry_run else "Split"
+        print(f"{action} into {count} file{'s' if count != 1 else ''}:")
 
         for f in files:
             size_str = self.format_size(int(f['size']))
@@ -192,6 +205,10 @@ def main() -> int:
                         help='Prefix for output files (default: derived from input filename)')
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='Suppress output messages')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='Show what would be created without writing files')
+    parser.add_argument('--overwrite', action='store_true',
+                        help='Overwrite existing output files without warning')
     parser.add_argument('-V', '--version', action='version',
                         version=f'%(prog)s {__version__}')
 
@@ -225,9 +242,15 @@ def main() -> int:
         encoding=args.encoding,
         output_dir=output_dir,
         output_prefix=output_prefix,
+        dry_run=args.dry_run,
+        overwrite=args.overwrite,
     )
 
-    output_files = splitter.split()
+    try:
+        output_files = splitter.split()
+    except FileExistsError as e:
+        print(e, file=sys.stderr)
+        return 1
 
     if not args.quiet:
         splitter.print_summary(output_files)

@@ -290,3 +290,74 @@ class TestOutputFileNaming:
         # No files should have double .ics extension
         double_ext_files = list(work_dir.glob("*.ics.*.ics"))
         assert len(double_ext_files) == 0
+
+
+class TestDryRunFlag:
+    """Tests for --dry-run flag."""
+
+    def test_dry_run_does_not_create_files(self, work_dir):
+        """--dry-run should not create any output files."""
+        result = run_splitics(work_dir, "simple.ics", "-n", "1", "--dry-run")
+        assert result.returncode == 0
+
+        # No output files should be created
+        output_files = list(work_dir.glob("simple_part*.ics"))
+        assert len(output_files) == 0
+
+    def test_dry_run_shows_would_split_message(self, work_dir):
+        """--dry-run should show 'Would split' instead of 'Split'."""
+        result = run_splitics(work_dir, "simple.ics", "-n", "1", "--dry-run")
+        assert result.returncode == 0
+        assert "Would split" in result.stdout
+
+    def test_dry_run_shows_file_info(self, work_dir):
+        """--dry-run should still show what files would be created."""
+        result = run_splitics(work_dir, "simple.ics", "-n", "1", "--dry-run")
+        assert result.returncode == 0
+        assert "simple_part1.ics" in result.stdout
+
+    def test_dry_run_with_quiet_produces_no_output(self, work_dir):
+        """--dry-run with --quiet should produce no output."""
+        result = run_splitics(work_dir, "simple.ics", "-n", "1", "--dry-run", "-q")
+        assert result.returncode == 0
+        assert result.stdout == ""
+
+        # Still no files created
+        output_files = list(work_dir.glob("simple_part*.ics"))
+        assert len(output_files) == 0
+
+
+class TestOverwriteFlag:
+    """Tests for --overwrite flag."""
+
+    def test_error_when_output_exists_without_overwrite(self, work_dir):
+        """Should error if output file exists and --overwrite not specified."""
+        # First run creates files
+        result1 = run_splitics(work_dir, "simple.ics", "-n", "10")
+        assert result1.returncode == 0
+
+        # Second run should fail
+        result2 = run_splitics(work_dir, "simple.ics", "-n", "10")
+        assert result2.returncode == 1
+        assert "already exists" in result2.stderr
+        assert "--overwrite" in result2.stderr
+
+    def test_overwrite_allows_replacing_existing_files(self, work_dir):
+        """--overwrite should allow replacing existing files."""
+        # First run creates files
+        result1 = run_splitics(work_dir, "simple.ics", "-n", "10")
+        assert result1.returncode == 0
+
+        # Second run with --overwrite should succeed
+        result2 = run_splitics(work_dir, "simple.ics", "-n", "10", "--overwrite")
+        assert result2.returncode == 0
+
+    def test_overwrite_not_needed_for_dry_run(self, work_dir):
+        """--dry-run should not need --overwrite even if files exist."""
+        # First run creates files
+        result1 = run_splitics(work_dir, "simple.ics", "-n", "10")
+        assert result1.returncode == 0
+
+        # Dry run should succeed without --overwrite
+        result2 = run_splitics(work_dir, "simple.ics", "-n", "10", "--dry-run")
+        assert result2.returncode == 0
