@@ -17,6 +17,8 @@ import os
 import re
 import sys
 
+__version__ = "2.0.0"
+
 
 def parse_size(s):
     """
@@ -45,24 +47,44 @@ BEGIN_EVENT = "BEGIN:VEVENT"
 
 def dump():
     """
-    Dumps the current stream to file.
+    Dumps the current stream to file and tracks output info.
     """
+    global output_files
     # Use 1-indexed naming: prefix_part1.ics, prefix_part2.ics, etc.
-    output_path = os.path.join(output_dir, "{}_part{}.ics".format(output_prefix, file_count + 1))
+    filename = "{}_part{}.ics".format(output_prefix, file_count + 1)
+    output_path = os.path.join(output_dir, filename)
+    content = stream.getvalue()
     with open(output_path, "w", encoding=args.encoding) as outfile:
-        outfile.write(stream.getvalue())
+        outfile.write(content)
+    # Track file info for summary
+    output_files.append({
+        'filename': filename,
+        'size': len(content.encode(args.encoding)),
+        'events': event_count
+    })
 
 
 if __name__ == '__main__':
 
     # region Setup argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('input', type=argparse.FileType('r'), help='The .ics input file')
-    parser.add_argument('-s', '--size', type=str, default='1M', help='Maximum size of each file (approximate)')
-    parser.add_argument('-n', '--number', type=int, default=float('inf'), help='Maximum number of events in each file')
-    parser.add_argument('-e', '--encoding', type=str, default='utf8', help='Encoding of the input file')
+    parser = argparse.ArgumentParser(
+        description='Split large ICS calendar files into smaller chunks.',
+        epilog='Example: %(prog)s calendar.ics -s 500K -n 50'
+    )
+    parser.add_argument('input', type=argparse.FileType('r'),
+                        help='Input .ics calendar file to split')
+    parser.add_argument('-s', '--size', type=str, default='1M',
+                        help='Maximum size per output file, e.g., 500K or 1M (default: 1M)')
+    parser.add_argument('-n', '--number', type=int, default=float('inf'),
+                        help='Maximum number of events per output file')
+    parser.add_argument('-e', '--encoding', type=str, default='utf8',
+                        help='File encoding (default: utf8)')
     parser.add_argument('-o', '--output-prefix', type=str, default=None,
                         help='Prefix for output files (default: derived from input filename)')
+    parser.add_argument('-q', '--quiet', action='store_true',
+                        help='Suppress output messages')
+    parser.add_argument('-V', '--version', action='version',
+                        version='%(prog)s ' + __version__)
 
     args = parser.parse_args(sys.argv[1:])
     try:
@@ -87,6 +109,7 @@ if __name__ == '__main__':
 
     stream = io.StringIO()
     size, event_count, file_count = 0, 0, 0
+    output_files = []  # Track output files for summary
 
     # Capture the calendar header (everything before the first event)
     calendar_header = io.StringIO()
@@ -132,6 +155,26 @@ if __name__ == '__main__':
 
     # Flush the last part of the file. There's no need to add the calendar's end (the file already has it).
     dump()
+
+    # Print summary unless quiet mode
+    if not args.quiet:
+        total_events = sum(f['events'] for f in output_files)
+        print("Split into {} file{}:".format(
+            len(output_files),
+            's' if len(output_files) != 1 else ''
+        ))
+        for f in output_files:
+            size_kb = f['size'] / 1024
+            if size_kb >= 1024:
+                size_str = "{:.1f} MB".format(size_kb / 1024)
+            else:
+                size_str = "{:.0f} KB".format(size_kb)
+            print("  {} ({}, {} event{})".format(
+                f['filename'],
+                size_str,
+                f['events'],
+                's' if f['events'] != 1 else ''
+            ))
 
 
 # [1] Never gonna happen

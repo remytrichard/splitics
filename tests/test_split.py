@@ -197,6 +197,46 @@ class TestCommandLineInterface:
         result = run_splitics(work_dir, "simple.ics", "-e", "utf-8")
         assert result.returncode == 0
 
+    def test_version_flag(self, work_dir):
+        """--version should show version information."""
+        result = run_splitics(work_dir, "--version")
+        assert result.returncode == 0
+        assert "2.0.0" in result.stdout
+
+    def test_version_short_flag(self, work_dir):
+        """-V should show version information."""
+        result = run_splitics(work_dir, "-V")
+        assert result.returncode == 0
+        assert "2.0.0" in result.stdout
+
+    def test_quiet_flag_suppresses_output(self, work_dir):
+        """--quiet should suppress summary output."""
+        result = run_splitics(work_dir, "simple.ics", "-n", "1", "--quiet")
+        assert result.returncode == 0
+        assert result.stdout == ""
+
+    def test_quiet_short_flag(self, work_dir):
+        """-q should suppress summary output."""
+        result = run_splitics(work_dir, "simple.ics", "-n", "1", "-q")
+        assert result.returncode == 0
+        assert result.stdout == ""
+
+    def test_summary_output(self, work_dir):
+        """Should print summary when not in quiet mode."""
+        result = run_splitics(work_dir, "simple.ics", "-n", "1")
+        assert result.returncode == 0
+        assert "Split into" in result.stdout
+        assert "simple_part1.ics" in result.stdout
+
+    def test_summary_shows_event_count(self, work_dir):
+        """Summary should show event count for each file."""
+        result = run_splitics(work_dir, "simple.ics", "-n", "2")
+        assert result.returncode == 0
+        # First file should have 2 events
+        assert "2 events" in result.stdout
+        # Second file should have 1 event
+        assert "1 event)" in result.stdout
+
 
 class TestOutputFileNaming:
     """Tests for output file naming convention."""
