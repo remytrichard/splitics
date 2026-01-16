@@ -24,6 +24,76 @@ This document outlines the plan to modernize the splitics codebase, a 9-year-old
 
 ---
 
+## PR 0: Test Harness Setup
+
+**Goal:** Establish a test framework and baseline tests before any refactoring begins.
+
+### Rationale
+
+Having tests in place before modifying the code provides:
+- A safety net to catch regressions during refactoring
+- Documentation of expected behavior
+- Confidence that changes work correctly
+- A feedback loop during implementation
+
+### Test Framework
+
+**pytest** - Modern, ergonomic, widely used. Only a dev dependency, doesn't affect the "single file to download and run" goal.
+
+### Project Structure
+
+```
+splitics/
+├── splitics.py              # The script (unchanged)
+├── Plan.md
+├── Claude.md                # Implementation instructions for Claude Code
+├── pyproject.toml           # Dev dependencies (pytest)
+├── tests/
+│   ├── __init__.py
+│   ├── test_parse_size.py   # Unit tests for size parsing
+│   ├── test_split.py        # Integration tests for splitting logic
+│   └── fixtures/
+│       ├── simple.ics       # Simple calendar (3-5 events)
+│       ├── medium.ics       # ~20 events for split testing
+│       └── malformed.ics    # Invalid ICS for error handling tests
+```
+
+### Test Coverage
+
+| Area | Tests |
+|------|-------|
+| `parse_size()` | Valid inputs ("1M", "500k", "100K"), invalid inputs, edge cases |
+| Splitting logic | Correct number of files, correct event distribution, size limits respected |
+| ICS validity | Split files have proper headers, BEGIN/END tags balanced |
+| CLI args | Default values, custom values, invalid combinations |
+| Error handling | Missing file, bad encoding, invalid ICS (added in later PRs) |
+
+### Files Created
+
+- `pyproject.toml` - Project metadata and dev dependencies
+- `tests/__init__.py` - Test package marker
+- `tests/test_parse_size.py` - Unit tests for `parse_size()` function
+- `tests/test_split.py` - Integration tests for the splitting functionality
+- `tests/fixtures/*.ics` - Sample ICS files for testing
+
+### Running Tests
+
+```bash
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Run all tests
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run specific test file
+pytest tests/test_parse_size.py
+```
+
+---
+
 ## PR 1: Fix ICS Format Bug
 
 **Goal:** Ensure split files are valid ICS files that will actually import.
@@ -235,6 +305,7 @@ Warning: Encoding error on line 1547. Try: splitics.py calendar.ics -e latin1
 
 | PR | Title | Complexity | Risk |
 |----|-------|------------|------|
+| 0 | Test harness setup | Low | None |
 | 1 | Fix ICS format bug | Medium | Low (fixes a bug) |
 | 2 | Fix output file naming | Low | Low |
 | 3 | Add user feedback | Low | Low |
