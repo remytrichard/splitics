@@ -39,6 +39,7 @@ def parse_size(s):
 BEGIN_CALENDAR = "BEGIN:VCALENDAR\n"
 END_CALENDAR = "END:VCALENDAR\n"
 END_EVENT = "END:VEVENT"
+BEGIN_EVENT = "BEGIN:VEVENT"
 
 
 def dump():
@@ -69,7 +70,22 @@ if __name__ == '__main__':
     stream = io.StringIO()
     size, event_count, file_count = 0, 0, 0
 
+    # Capture the calendar header (everything before the first event)
+    calendar_header = io.StringIO()
+    header_captured = False
+
     for line in args.input:
+
+        # Capture header lines until we hit the first BEGIN:VEVENT
+        if not header_captured:
+            if line.startswith(BEGIN_EVENT):
+                header_captured = True
+                calendar_header = calendar_header.getvalue()
+            else:
+                calendar_header.write(line)
+                stream.write(line)
+                size += len(line)
+                continue
 
         # Copy the file line by line, tracking the current file size
         stream.write(line)
@@ -83,9 +99,9 @@ if __name__ == '__main__':
 
                 dump()
 
-                # Reset the stream (adding a new header for the calendar)
+                # Reset the stream (using the full calendar header)
                 stream = io.StringIO()
-                stream.write(BEGIN_CALENDAR)
+                stream.write(calendar_header)
                 size, event_count = 0, 0
 
                 file_count += 1

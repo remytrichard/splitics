@@ -141,21 +141,41 @@ class TestOutputFileStructure:
         output_files = work_dir.glob("simple.ics.*.ics")
         for f in output_files:
             content = f.read_text()
-            # Note: Currently the script only writes "BEGIN:VCALENDAR\n"
-            # for split files, missing VERSION, PRODID etc.
-            # This is a known bug to be fixed in PR1
             assert content.startswith("BEGIN:VCALENDAR")
 
-    def test_first_output_preserves_header(self, work_dir):
-        """First output file should preserve the original header."""
+    def test_all_output_files_preserve_full_header(self, work_dir):
+        """All output files should have the full calendar header (VERSION, PRODID, etc.)."""
         run_splitics(work_dir, "simple.ics", "-n", "1")
 
-        # The first output file (index 0) should have the full header
-        first_output = work_dir / "simple.ics.0.ics"
-        content = first_output.read_text()
+        # All output files should have the full header, not just BEGIN:VCALENDAR
+        output_files = sorted(work_dir.glob("simple.ics.*.ics"))
+        for f in output_files:
+            content = f.read_text()
+            assert "VERSION:2.0" in content, f"{f.name} missing VERSION"
+            assert "PRODID:" in content, f"{f.name} missing PRODID"
 
-        assert "VERSION:2.0" in content
-        assert "PRODID:" in content
+    def test_split_files_have_identical_headers(self, work_dir):
+        """All split files should have identical calendar headers."""
+        run_splitics(work_dir, "medium.ics", "-n", "5")
+
+        output_files = sorted(work_dir.glob("medium.ics.*.ics"))
+
+        # Extract header from each file (everything before first BEGIN:VEVENT or END:VCALENDAR)
+        headers = []
+        for f in output_files:
+            content = f.read_text()
+            # Find where events start or calendar ends
+            event_start = content.find("BEGIN:VEVENT")
+            calendar_end = content.find("END:VCALENDAR")
+            if event_start > 0:
+                header = content[:event_start]
+            else:
+                header = content[:calendar_end]
+            headers.append(header)
+
+        # All headers should be identical
+        for i, header in enumerate(headers[1:], 1):
+            assert header == headers[0], f"Header in file {i} differs from file 0"
 
 
 class TestCommandLineInterface:
