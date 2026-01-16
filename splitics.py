@@ -1,72 +1,181 @@
 #!/usr/bin/env python3
-# -*- coding: utf8 -*-
-
 """
+Split large ICS calendar files into smaller chunks.
+
 This script takes an .ics calendar file and splits it into smaller files.
 You can split the file based on the file size, number of events, or both.
 It's useful when you want to migrate a calendar into Google Calendar,
 since it will only accept files that are smaller than about 1MB.
 """
 
-# This script is full of globals. Please don't program like this.
-# It's 11PM on a saturday. I'll come back and refactor it, I swear [1]
+from __future__ import annotations
 
 import argparse
 import io
 import os
 import re
 import sys
+from typing import TextIO
 
 __version__ = "2.0.0"
 
 
-def parse_size(s):
+def parse_size(size_str: str) -> int:
     """
-    Parses a human-readable size to a number of bytes.
-    Only accepts kilos and megs because seriously, there's no point in other units (not for ics files anyway).
+    Parse a human-readable size string to bytes.
+
+    Accepts formats like '1M', '500K', '1MB', '500kb'.
+    Only kilobytes and megabytes are supported.
+
+    Args:
+        size_str: Size specification (e.g., '1M', '500K')
+
+    Returns:
+        Size in bytes
+
+    Raises:
+        ValueError: If the size specification is invalid
     """
     sizes = {
         'K': 1024,
         'M': 1024 * 1024,
     }
 
-    pattern = re.compile('^(\d+)([Kk]|M)[Bb]?$')
-    match = pattern.match(s)
+    pattern = re.compile(r'^(\d+)([Kk]|M)[Bb]?$')
+    match = pattern.match(size_str)
     if not match:
-        raise ValueError("Cannot understand size specification {}".format(s))
+        raise ValueError(f"Cannot understand size specification {size_str}")
 
-    v, u = match.groups()
-    return int(v) * sizes[u.upper()]
-
-
-BEGIN_CALENDAR = "BEGIN:VCALENDAR\n"
-END_CALENDAR = "END:VCALENDAR\n"
-END_EVENT = "END:VEVENT"
-BEGIN_EVENT = "BEGIN:VEVENT"
+    value, unit = match.groups()
+    return int(value) * sizes[unit.upper()]
 
 
-def dump():
-    """
-    Dumps the current stream to file and tracks output info.
-    """
-    global output_files
-    # Use 1-indexed naming: prefix_part1.ics, prefix_part2.ics, etc.
-    filename = "{}_part{}.ics".format(output_prefix, file_count + 1)
-    output_path = os.path.join(output_dir, filename)
-    content = stream.getvalue()
-    with open(output_path, "w", encoding=args.encoding) as outfile:
-        outfile.write(content)
-    # Track file info for summary
-    output_files.append({
-        'filename': filename,
-        'size': len(content.encode(args.encoding)),
-        'events': event_count
-    })
+class CalendarSplitter:
+    """Splits ICS calendar files into smaller chunks."""
+
+    BEGIN_CALENDAR = "BEGIN:VCALENDAR\n"
+    END_CALENDAR = "END:VCALENDAR\n"
+    END_EVENT = "END:VEVENT"
+    BEGIN_EVENT = "BEGIN:VEVENT"
+
+    def __init__(
+        self,
+        input_file: TextIO,
+        max_size: int,
+        max_events: int | float,
+        encoding: str,
+        output_dir: str,
+        output_prefix: str,
+    ) -> None:
+        """
+        Initialize the calendar splitter.
+
+        Args:
+            input_file: Open file handle for the input ICS file
+            max_size: Maximum size per output file in bytes
+            max_events: Maximum number of events per output file
+            encoding: File encoding for output files
+            output_dir: Directory for output files
+            output_prefix: Prefix for output filenames
+        """
+        self.input_file = input_file
+        self.max_size = max_size
+        self.max_events = max_events
+        self.encoding = encoding
+        self.output_dir = output_dir
+        self.output_prefix = output_prefix
+
+        # State variables
+        self._stream: io.StringIO = io.StringIO()
+        self._current_size: int = 0
+        self._event_count: int = 0
+        self._file_count: int = 0
+        self._calendar_header: str = ""
+        self._header_captured: bool = False
+        self._output_files: list[dict[str, str | int]] = []
+
+    def _dump(self) -> None:
+        """Write the current buffer to a file and track output info."""
+        filename = f"{self.output_prefix}_part{self._file_count + 1}.ics"
+        output_path = os.path.join(self.output_dir, filename)
+        content = self._stream.getvalue()
+
+        with open(output_path, "w", encoding=self.encoding) as outfile:
+            outfile.write(content)
+
+        self._output_files.append({
+            'filename': filename,
+            'size': len(content.encode(self.encoding)),
+            'events': self._event_count,
+        })
+
+    def split(self) -> list[dict[str, str | int]]:
+        """
+        Split the input file into smaller chunks.
+
+        Returns:
+            List of dictionaries with info about each output file
+            (filename, size in bytes, event count)
+        """
+        header_buffer = io.StringIO()
+
+        for line in self.input_file:
+            # Capture header lines until we hit the first BEGIN:VEVENT
+            if not self._header_captured:
+                if line.startswith(self.BEGIN_EVENT):
+                    self._header_captured = True
+                    self._calendar_header = header_buffer.getvalue()
+                else:
+                    header_buffer.write(line)
+                    self._stream.write(line)
+                    self._current_size += len(line)
+                    continue
+
+            # Copy the file line by line, tracking the current file size
+            self._stream.write(line)
+            self._current_size += len(line)
+
+            if line.startswith(self.END_EVENT):
+                self._event_count += 1
+                if self._current_size > self.max_size or self._event_count >= self.max_events:
+                    # Reached a rollover point: write the calendar's end and flush
+                    self._stream.write(self.END_CALENDAR)
+                    self._dump()
+
+                    # Reset the stream with the calendar header
+                    self._stream = io.StringIO()
+                    self._stream.write(self._calendar_header)
+                    self._current_size = 0
+                    self._event_count = 0
+                    self._file_count += 1
+
+        # Flush the last part of the file
+        self._dump()
+
+        return self._output_files
+
+    @staticmethod
+    def format_size(size_bytes: int) -> str:
+        """Format a size in bytes as a human-readable string."""
+        size_kb = size_bytes / 1024
+        if size_kb >= 1024:
+            return f"{size_kb / 1024:.1f} MB"
+        return f"{size_kb:.0f} KB"
+
+    def print_summary(self, output_files: list[dict[str, str | int]] | None = None) -> None:
+        """Print a summary of the split operation."""
+        files = output_files if output_files is not None else self._output_files
+        count = len(files)
+        print(f"Split into {count} file{'s' if count != 1 else ''}:")
+
+        for f in files:
+            size_str = self.format_size(int(f['size']))
+            events = f['events']
+            print(f"  {f['filename']} ({size_str}, {events} event{'s' if events != 1 else ''})")
 
 
-if __name__ == '__main__':
-
-    # region Setup argparse
+def main() -> int:
+    """Main entry point for the script."""
     parser = argparse.ArgumentParser(
         description='Split large ICS calendar files into smaller chunks.',
         epilog='Example: %(prog)s calendar.ics -s 500K -n 50'
@@ -84,97 +193,47 @@ if __name__ == '__main__':
     parser.add_argument('-q', '--quiet', action='store_true',
                         help='Suppress output messages')
     parser.add_argument('-V', '--version', action='version',
-                        version='%(prog)s ' + __version__)
+                        version=f'%(prog)s {__version__}')
 
-    args = parser.parse_args(sys.argv[1:])
+    args = parser.parse_args()
+
+    # Parse size argument
     try:
-        args.size = parse_size(args.size)
+        max_size = parse_size(args.size)
     except ValueError as e:
         print(e)
-        sys.exit(1)
+        return 1
 
     # Compute output directory and prefix
     input_path = os.path.abspath(args.input.name)
     output_dir = os.path.dirname(input_path)
+
     if args.output_prefix:
         output_prefix = args.output_prefix
     else:
-        # Derive prefix from input filename (strip .ics extension if present)
         basename = os.path.basename(input_path)
         if basename.lower().endswith('.ics'):
             output_prefix = basename[:-4]
         else:
             output_prefix = basename
-    # endregion
 
-    stream = io.StringIO()
-    size, event_count, file_count = 0, 0, 0
-    output_files = []  # Track output files for summary
+    # Create splitter and run
+    splitter = CalendarSplitter(
+        input_file=args.input,
+        max_size=max_size,
+        max_events=args.number,
+        encoding=args.encoding,
+        output_dir=output_dir,
+        output_prefix=output_prefix,
+    )
 
-    # Capture the calendar header (everything before the first event)
-    calendar_header = io.StringIO()
-    header_captured = False
+    output_files = splitter.split()
 
-    for line in args.input:
-
-        # Capture header lines until we hit the first BEGIN:VEVENT
-        if not header_captured:
-            if line.startswith(BEGIN_EVENT):
-                header_captured = True
-                calendar_header = calendar_header.getvalue()
-            else:
-                calendar_header.write(line)
-                stream.write(line)
-                size += len(line)
-                continue
-
-        # Copy the file line by line, tracking the current file size
-        stream.write(line)
-        size += len(line)
-
-        if line.startswith(END_EVENT):
-            event_count += 1
-            if size > args.size or event_count >= args.number:
-                # Reached a rollover point: write the calendar's end and flush the file.
-                stream.write(END_CALENDAR)
-
-                dump()
-
-                # Reset the stream (using the full calendar header)
-                stream = io.StringIO()
-                stream.write(calendar_header)
-                size, event_count = 0, 0
-
-                file_count += 1
-            else:
-                continue
-
-    else:
-        # Finished the file, nothing to do except flushing
-        pass
-
-    # Flush the last part of the file. There's no need to add the calendar's end (the file already has it).
-    dump()
-
-    # Print summary unless quiet mode
     if not args.quiet:
-        total_events = sum(f['events'] for f in output_files)
-        print("Split into {} file{}:".format(
-            len(output_files),
-            's' if len(output_files) != 1 else ''
-        ))
-        for f in output_files:
-            size_kb = f['size'] / 1024
-            if size_kb >= 1024:
-                size_str = "{:.1f} MB".format(size_kb / 1024)
-            else:
-                size_str = "{:.0f} KB".format(size_kb)
-            print("  {} ({}, {} event{})".format(
-                f['filename'],
-                size_str,
-                f['events'],
-                's' if f['events'] != 1 else ''
-            ))
+        splitter.print_summary(output_files)
+
+    return 0
 
 
-# [1] Never gonna happen
+if __name__ == '__main__':
+    sys.exit(main())
