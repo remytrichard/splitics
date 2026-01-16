@@ -1,0 +1,166 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Test//Splitics//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+DTSTART:20240101T100000Z
+DTEND:20240101T110000Z
+SUMMARY:Meeting with team to discuss project requirements
+DESCRIPTION:This is a longer description to add some size to the event entry.
+LOCATION:Conference Room A
+UID:event01@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240102T100000Z
+DTEND:20240102T110000Z
+SUMMARY:Code review session for the new feature branch
+DESCRIPTION:Review pull requests and discuss implementation details.
+LOCATION:Conference Room B
+UID:event02@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240103T100000Z
+DTEND:20240103T110000Z
+SUMMARY:Sprint planning meeting for Q1 objectives
+DESCRIPTION:Plan the upcoming sprint and assign story points.
+LOCATION:Main Office
+UID:event03@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240104T100000Z
+DTEND:20240104T110000Z
+SUMMARY:Client presentation and demo session
+DESCRIPTION:Present the latest features to the client stakeholders.
+LOCATION:Virtual Meeting
+UID:event04@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240105T100000Z
+DTEND:20240105T110000Z
+SUMMARY:Team lunch and casual networking event
+DESCRIPTION:Monthly team building activity with lunch provided.
+LOCATION:Cafeteria
+UID:event05@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240106T100000Z
+DTEND:20240106T110000Z
+SUMMARY:Technical architecture review meeting
+DESCRIPTION:Review system architecture and discuss improvements.
+LOCATION:Tech Hub
+UID:event06@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240107T100000Z
+DTEND:20240107T110000Z
+SUMMARY:Security audit and compliance review
+DESCRIPTION:Annual security review with external auditors.
+LOCATION:Secure Room
+UID:event07@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240108T100000Z
+DTEND:20240108T110000Z
+SUMMARY:Product roadmap planning session
+DESCRIPTION:Define product features for the next quarter.
+LOCATION:Strategy Room
+UID:event08@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240109T100000Z
+DTEND:20240109T110000Z
+SUMMARY:DevOps infrastructure planning
+DESCRIPTION:Plan infrastructure upgrades and migrations.
+LOCATION:Server Room
+UID:event09@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240110T100000Z
+DTEND:20240110T110000Z
+SUMMARY:User research findings presentation
+DESCRIPTION:Share insights from recent user interviews.
+LOCATION:Design Studio
+UID:event10@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240111T100000Z
+DTEND:20240111T110000Z
+SUMMARY:Budget review and financial planning
+DESCRIPTION:Quarterly budget review with finance team.
+LOCATION:Finance Office
+UID:event11@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240112T100000Z
+DTEND:20240112T110000Z
+SUMMARY:Cross-team collaboration workshop
+DESCRIPTION:Workshop to improve inter-team communication.
+LOCATION:Workshop Space
+UID:event12@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240113T100000Z
+DTEND:20240113T110000Z
+SUMMARY:Performance optimization brainstorm
+DESCRIPTION:Discuss ways to improve application performance.
+LOCATION:Tech Lab
+UID:event13@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240114T100000Z
+DTEND:20240114T110000Z
+SUMMARY:Onboarding session for new team members
+DESCRIPTION:Welcome and orientation for new hires.
+LOCATION:Training Room
+UID:event14@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240115T100000Z
+DTEND:20240115T110000Z
+SUMMARY:API design review and documentation
+DESCRIPTION:Review API endpoints and update documentation.
+LOCATION:Dev Corner
+UID:event15@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240116T100000Z
+DTEND:20240116T110000Z
+SUMMARY:Testing strategy discussion
+DESCRIPTION:Plan testing approach for the release.
+LOCATION:QA Lab
+UID:event16@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240117T100000Z
+DTEND:20240117T110000Z
+SUMMARY:Retrospective meeting for last sprint
+DESCRIPTION:Review what went well and what to improve.
+LOCATION:Retro Room
+UID:event17@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240118T100000Z
+DTEND:20240118T110000Z
+SUMMARY:Database optimization workshop
+DESCRIPTION:Hands-on session for database performance tuning.
+LOCATION:Data Center
+UID:event18@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240119T100000Z
+DTEND:20240119T110000Z
+SUMMARY:Release planning and coordination
+DESCRIPTION:Coordinate the upcoming software release.
+LOCATION:Release Hub
+UID:event19@test.com
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20240120T100000Z
+DTEND:20240120T110000Z
+SUMMARY:End of month wrap-up meeting
+DESCRIPTION:Summary of achievements and next month planning.
+LOCATION:Main Hall
+UID:event20@test.com
+END:VEVENT
+END:VCALENDAR
