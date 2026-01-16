@@ -68,6 +68,7 @@ class CalendarSplitter:
         output_prefix: str,
         dry_run: bool = False,
         overwrite: bool = False,
+        quiet: bool = False,
     ) -> None:
         """
         Initialize the calendar splitter.
@@ -81,6 +82,7 @@ class CalendarSplitter:
             output_prefix: Prefix for output filenames
             dry_run: If True, don't write files, just show what would be created
             overwrite: If True, overwrite existing files without warning
+            quiet: If True, suppress progress output
         """
         self.input_file = input_file
         self.max_size = max_size
@@ -90,6 +92,7 @@ class CalendarSplitter:
         self.output_prefix = output_prefix
         self.dry_run = dry_run
         self.overwrite = overwrite
+        self.quiet = quiet
 
         # State variables
         self._stream: io.StringIO = io.StringIO()
@@ -99,6 +102,7 @@ class CalendarSplitter:
         self._calendar_header: str = ""
         self._header_captured: bool = False
         self._output_files: list[dict[str, str | int]] = []
+        self._total_events: int = 0
 
     def _dump(self) -> None:
         """Write the current buffer to a file and track output info."""
@@ -112,8 +116,14 @@ class CalendarSplitter:
                     f"Output file already exists: {output_path}\n"
                     "Use --overwrite to replace existing files."
                 )
-            with open(output_path, "w", encoding=self.encoding) as outfile:
-                outfile.write(content)
+            try:
+                with open(output_path, "w", encoding=self.encoding) as outfile:
+                    outfile.write(content)
+            except PermissionError:
+                raise PermissionError(
+                    f"Cannot write to '{output_path}' - permission denied.\n"
+                    "Try specifying a different output location with --output-prefix."
+                )
 
         self._output_files.append({
             'filename': filename,
@@ -128,10 +138,24 @@ class CalendarSplitter:
         Returns:
             List of dictionaries with info about each output file
             (filename, size in bytes, event count)
+
+        Raises:
+            ValueError: If the input file is not a valid ICS file
         """
         header_buffer = io.StringIO()
+        first_line = True
+        progress_interval = 100  # Print progress every N events
 
         for line in self.input_file:
+            # Validate first line is BEGIN:VCALENDAR
+            if first_line:
+                first_line = False
+                if not line.strip().upper().startswith("BEGIN:VCALENDAR"):
+                    raise ValueError(
+                        "File doesn't appear to be a valid ICS file "
+                        "(missing BEGIN:VCALENDAR)."
+                    )
+
             # Capture header lines until we hit the first BEGIN:VEVENT
             if not self._header_captured:
                 if line.startswith(self.BEGIN_EVENT):
@@ -149,6 +173,12 @@ class CalendarSplitter:
 
             if line.startswith(self.END_EVENT):
                 self._event_count += 1
+                self._total_events += 1
+
+                # Show progress for large files
+                if not self.quiet and self._total_events % progress_interval == 0:
+                    print(f"Processing... {self._total_events} events", end="\r")
+
                 if self._current_size > self.max_size or self._event_count >= self.max_events:
                     # Reached a rollover point: write the calendar's end and flush
                     self._stream.write(self.END_CALENDAR)
@@ -160,6 +190,10 @@ class CalendarSplitter:
                     self._current_size = 0
                     self._event_count = 0
                     self._file_count += 1
+
+        # Clear progress line if we printed any
+        if not self.quiet and self._total_events >= progress_interval:
+            print(" " * 40, end="\r")  # Clear the line
 
         # Flush the last part of the file
         self._dump()
@@ -244,12 +278,19 @@ def main() -> int:
         output_prefix=output_prefix,
         dry_run=args.dry_run,
         overwrite=args.overwrite,
+        quiet=args.quiet,
     )
 
     try:
         output_files = splitter.split()
     except FileExistsError as e:
-        print(e, file=sys.stderr)
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except PermissionError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
         return 1
 
     if not args.quiet:
