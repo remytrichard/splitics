@@ -79,17 +79,18 @@ splitics/
 ### Running Tests
 
 ```bash
-# Install dev dependencies
-pip install -e ".[dev]"
-
-# Run all tests
-pytest
+# Install dev dependencies and run tests (uv handles everything)
+uv run pytest
 
 # Run with verbose output
-pytest -v
+uv run pytest -v
 
 # Run specific test file
-pytest tests/test_parse_size.py
+uv run pytest tests/test_parse_size.py
+
+# Or install dependencies first, then run pytest directly
+uv sync
+pytest -v
 ```
 
 ---

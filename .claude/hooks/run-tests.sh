@@ -23,10 +23,10 @@ if [[ "$file_path" == *.py ]]; then
         exit 0
     fi
 
-    # Check if pytest is available
-    if ! command -v pytest &> /dev/null; then
-        echo "[hook] pytest not installed - skipping tests"
-        echo "[hook] Install with: pip install -e '.[dev]'"
+    # Check if uv is available
+    if ! command -v uv &> /dev/null; then
+        echo "[hook] uv not installed - skipping tests"
+        echo "[hook] Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
         exit 0
     fi
 
@@ -35,8 +35,8 @@ if [[ "$file_path" == *.py ]]; then
     echo "[hook] Running pytest after edit to: $(basename "$file_path")"
     echo "=========================================="
 
-    # Run pytest with short traceback
-    pytest -v --tb=short
+    # Run pytest via uv (handles venv and dependencies automatically)
+    uv run pytest -v --tb=short
     exit_code=$?
 
     echo ""

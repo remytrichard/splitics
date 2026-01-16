@@ -65,21 +65,27 @@ For EVERY change to `splitics.py`:
 
 ## Test Commands
 
+This project uses `uv` for dependency management.
+
 ```bash
-# Run all tests
-pytest
+# Run all tests (uv handles venv and dependencies automatically)
+uv run pytest
 
 # Run with verbose output
-pytest -v
+uv run pytest -v
 
 # Run specific test file
-pytest tests/test_parse_size.py
+uv run pytest tests/test_parse_size.py
 
 # Run tests matching a pattern
-pytest -k "test_parse"
+uv run pytest -k "test_parse"
 
 # Run with coverage (if pytest-cov installed)
-pytest --cov=splitics
+uv run pytest --cov=splitics
+
+# Or sync dependencies first, then run pytest directly
+uv sync
+pytest -v
 ```
 
 ## PR Implementation Order
