@@ -94,18 +94,108 @@ Implement PRs in this order, stopping after each one for review:
 6. **PR 5**: Add `--dry-run` and `--overwrite` flags
 7. **PR 6**: Progress indicator and better error handling
 
-## Commit Message Format
+## Git Commit Guidelines
 
-Use clear, descriptive commit messages:
+Use **Conventional Commits** format for all commit messages.
+
+### Format
 
 ```
-PR0: Set up test harness with pytest
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer]
+```
+
+### Types
+
+| Type | Description |
+|------|-------------|
+| `feat` | New feature |
+| `fix` | Bug fix |
+| `docs` | Documentation only |
+| `style` | Formatting, no code change |
+| `refactor` | Code restructuring, no feature change |
+| `test` | Adding or updating tests |
+| `chore` | Build, config, tooling changes |
+
+### Scope
+
+Use the PR number as scope: `pr0`, `pr1`, etc.
+
+### Examples
+
+```
+test(pr0): add pytest infrastructure and baseline tests
 
 - Add pyproject.toml with dev dependencies
-- Create test fixtures (simple.ics, medium.ics, malformed.ics)
+- Create test fixtures (simple.ics, medium.ics)
 - Add unit tests for parse_size()
 - Add integration tests for splitting logic
 ```
+
+```
+fix(pr1): preserve calendar header in split files
+
+The split files were missing VERSION, PRODID, and other required
+properties, causing import failures in Google Calendar.
+
+- Capture full header during initial parsing
+- Use complete header when starting each new split file
+```
+
+```
+feat(pr2): improve output file naming
+
+- Change output from input.ics.0.ics to input_part1.ics
+- Add --output-prefix option for custom naming
+```
+
+### Rules
+
+- Use imperative mood: "add feature" not "added feature"
+- First line max 72 characters
+- Body wrapped at 72 characters
+- Reference issues/PRs in footer if applicable
+
+## Engineering Best Practices
+
+Follow these practices like a senior software engineer:
+
+### Code Quality
+
+- **Read before writing**: Always read existing code before modifying
+- **Minimal changes**: Only change what's necessary for the task
+- **No dead code**: Remove unused code, don't comment it out
+- **Clear naming**: Use descriptive variable/function names
+- **Single responsibility**: Each function does one thing well
+
+### Testing
+
+- **Test first**: Write or update tests before implementing
+- **Test edge cases**: Cover boundary conditions and error paths
+- **Descriptive test names**: `test_parse_size_returns_bytes_for_megabytes`
+- **Independent tests**: Tests should not depend on each other
+
+### Error Handling
+
+- **Fail fast**: Validate inputs early
+- **Clear messages**: Error messages should explain what went wrong and how to fix it
+- **No silent failures**: Don't swallow exceptions without logging
+
+### Documentation
+
+- **Self-documenting code**: Prefer clear code over comments
+- **Docstrings**: Add for public functions with non-obvious behavior
+- **Update README**: Keep user documentation current
+
+### Git Workflow
+
+- **Atomic commits**: Each commit is a complete, working change
+- **Review before commit**: `git diff --staged` before committing
+- **Don't commit broken code**: All tests must pass
+- **Push frequently**: Don't accumulate unpushed commits
 
 ## Important Reminders
 
