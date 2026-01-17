@@ -1,0 +1,94 @@
+name: Warp PR Review
+
+# Trigger when a PR is opened or marked ready for review
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+
+# Permissions for PR review functionality
+# - pull-requests: write - allows posting review comments and suggestions
+# - contents: read - allows reading the code being reviewed
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  review-pr:
+    # Skip draft PRs (they'll trigger when marked ready)
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Check out the PR code for analysis
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch enough history to compare against base branch
+          fetch-depth: 0
+          # Check out the PR head commit
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      # Step 2: Get the list of changed files for context
+      - name: Get changed files
+        id: changed-files
+        run: |
+          # Get the list of files changed in this PR
+          FILES=$(gh pr diff ${{ github.event.pull_request.number }} --name-only | head -50)
+          echo "files<<EOF" >> $GITHUB_OUTPUT
+          echo "$FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 3: Run Warp Agent for code review
+      - name: Run Warp Agent Review
+        id: warp-review
+        uses: warpdotdev/warp-agent-action@v1
+        with:
+          api_key: ${{ secrets.WARP_API_KEY }}
+          prompt: |
+            You are a senior code reviewer. Please review this pull request thoroughly.
+            
+            **Pull Request Details:**
+            - Title: ${{ github.event.pull_request.title }}
+            - Author: ${{ github.event.pull_request.user.login }}
+            - Description: ${{ github.event.pull_request.body }}
+            - Base Branch: ${{ github.event.pull_request.base.ref }}
+            - Head Branch: ${{ github.event.pull_request.head.ref }}
+            - Changed Files: ${{ steps.changed-files.outputs.files }}
+            
+            **Review Instructions:**
+            1. Analyze the code changes in this PR
+            2. Check for:
+               - Potential bugs or logic errors
+               - Security vulnerabilities (SQL injection, XSS, hardcoded secrets, etc.)
+               - Performance issues
+               - Code style and readability
+               - Missing error handling
+               - Test coverage concerns
+               - Documentation needs
+            3. For each issue found:
+               - Provide specific file and line references when possible
+               - Explain the problem clearly
+               - Suggest a fix using GitHub's suggestion format when appropriate
+            4. Also highlight positive aspects of the code
+            5. Provide an overall summary and recommendation
+            
+            Post your review as a PR review comment. Use inline suggestions 
+            for specific code changes that can be applied with one click.
+          
+          # Use text output for human-readable review
+          output_format: text
+          share_session: true
+
+      # Step 4: Post the review summary as a PR comment (optional additional comment)
+      - name: Post review notification
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --body "🤖 **Warp AI Review Complete**
+            
+            I've reviewed this pull request. Please check the review comments above for detailed feedback.
+            
+            _This review was generated automatically by Warp Agent. Human review is still recommended._"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
