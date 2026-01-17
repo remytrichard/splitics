@@ -1,0 +1,62 @@
+name: Warp Comment Assistant
+
+# This workflow triggers when someone comments on an issue or pull request
+on:
+  issue_comment:
+    types: [created]
+
+# Permissions required for this workflow
+# - issues: write - allows the agent to reply to comments on issues
+# - pull-requests: write - allows the agent to reply to comments on PRs and make suggestions
+# - contents: write - allows the agent to push commits if code changes are requested
+permissions:
+  issues: write
+  pull-requests: write
+  contents: write
+
+jobs:
+  respond-to-mention:
+    # Only run if the comment mentions @warpdotdev (customize this trigger phrase)
+    if: contains(github.event.comment.body, '@warpdotdev')
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Check out the repository code so the agent can access and modify files
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history for better context
+          fetch-depth: 0
+          # Use a token with write permissions to push changes
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 2: Invoke the Warp agent with the comment context
+      - name: Run Warp Agent
+        uses: warpdotdev/warp-agent-action@v1
+        with:
+          api_key: ${{ secrets.WARP_API_KEY }}
+          prompt: |
+            You are an AI assistant helping with this GitHub repository.
+            
+            A user has mentioned you in a comment and is requesting assistance.
+            
+            **Comment Details:**
+            - Author: ${{ github.event.comment.user.login }}
+            - Comment Body: ${{ github.event.comment.body }}
+            - Issue/PR Number: #${{ github.event.issue.number }}
+            - Issue/PR Title: ${{ github.event.issue.title }}
+            
+            **Instructions:**
+            1. Analyze the user's request in their comment
+            2. If they're asking a question about the code, provide a helpful answer
+            3. If they're requesting a code change (like fixing a typo, refactoring, or adding something):
+               - Make the requested changes to the relevant files
+               - Commit the changes with a descriptive message
+               - If this is a pull request, push to the PR branch
+            4. Reply to the comment thread with a summary of what you did
+            
+            Be helpful, concise, and thorough. If you cannot fulfill the request, 
+            explain why and suggest alternatives.
+          
+          # Enable session sharing for debugging (optional - remove in production)
+          share_session: true
